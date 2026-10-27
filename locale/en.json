@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Archived session digest",
+    "description": "Distil archived sessions into memories, a fact ledger and reusable skills, consolidate them into topics, and optionally reclaim the log space. Facts deduplicate, are superseded rather than overwritten, and can be exported to a mounted memory plugin. Automatic digesting can be switched off; sessions can also be picked by hand."
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "name": "dsh-archived-digest",
+  "version": "0.4.1",
+  "type": "module",
+  "description": "把归档会话压缩成记忆、事实台账与可复用技能，统一存放管理，并可选地回收日志占用的空间。事实按 mem0 的 ADD/UPDATE/NOOP 合并、按 Zep 的时效模型保留已被取代的旧结论，再聚合成主题，可导出到已挂载的记忆插件。自动提炼可关闭，也可手动挑选要提炼的归档会话。Distil archived sessions into memories, fact-level memory and reusable skills, then reclaim the log space.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "cordis",
+    "archive",
+    "session",
+    "memory",
+    "skill",
+    "digest"
+  ],
+  "license": "MIT",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "lib/*.js",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE",
+    "docs/store/*"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "author": "LLL-lyh0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LLL-lyh0/dsh-archived-digest.git"
+  },
+  "homepage": "https://github.com/LLL-lyh0/dsh-archived-digest#readme",
+  "peerDependencies": {
+    "@deepseek-ai/dsh-llm": ">=0.0.1-rc.1 <0.1.0 || >=0.1.0-rc.1 <0.1.2-alpha.1 || >=0.1.2-alpha.1 <0.2.0-0 || >=0.2.0-rc.1 <0.2.1-alpha.1 || >=0.2.1-alpha.1 <0.3.0-0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    }
+  }
+}

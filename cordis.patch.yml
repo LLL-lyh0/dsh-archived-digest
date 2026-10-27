@@ -1,0 +1,35 @@
+# 归档会话提炼（Archived session digest）
+#
+# Host 侧：扫描已归档会话 → 解码（多帧 zstd JSONL）→ 提炼成一条记忆 + 可复用技能 +
+# 事实台账，落到 $DSH_HOME/archived-digest/{memories,skills,facts.json}；
+# 事实按 mem0 的 ADD/UPDATE/DELETE 合并去重，按 Zep 的时效模型保留 validUntil；
+# 再聚合成主题记忆，可导出到已挂载的记忆插件。可选回收日志空间。注册 archived_digest 工具。
+# Client 侧：在左侧栏注册管理面板，支持手动勾选要提炼的归档会话、浏览主题/事实、检索记忆。
+#
+# config 只用于「首次播种」settings.json；之后以面板里的选择为准（settingsExist() 保证不覆盖）。
+- insert:
+    - id: dsh-archived-digest
+      name: 'dsh-archived-digest'
+      config:
+        # 后台自动提炼总开关。false = 完全手动（默认关闭，避免在用户不知情时消耗 token）。
+        autoEnabled: false
+        autoIntervalMinutes: 30
+        autoMaxPerRun: 3
+        autoRetryFailed: true
+        # 提炼成功后如何处理日志：off | logs | dir | trash
+        cleanupMode: 'off'
+        cleanupMinAgeDays: 7
+        extractSkills: true
+        # 记忆层
+        extractFacts: true
+        autoConsolidate: true
+        exportToBackend: true
+        # 实时会话（未归档的）：默认关闭，因为每个会话花一次模型调用。
+        # 打开后「刚聊完的对话」也会沉淀成记忆；静默窗口避免只记住半截。
+        captureLiveSessions: false
+        liveMaxPerRun: 2
+        liveSettleSeconds: 90
+        maxSourceChars: 14000
+        maxTokens: 2400
+        provider: ''
+        model: ''
