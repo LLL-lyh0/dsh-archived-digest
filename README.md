@@ -46,14 +46,16 @@ $DSH_HOME/archived-digest/
 
 ## 面板
 
-左侧栏多一个「归档会话提炼」入口（`order: 12`，在 github-manager 之后），七个标签页：
+左侧栏多一个「归档会话提炼」入口（`order: 12`，在 github-manager 之后），九个标签页：
 
 - **总览** — 归档条数、磁盘占用、提炼进度、自动开关状态、最近几次跑批记录。
 - **归档会话** — 一列所有归档会话，带状态徽章（待提炼 / 已提炼 / 已清理 / 失败 / 缺失 / 已固定）。前有复选框，可以手动勾选要提炼哪几个；顶部有「全选待提炼」「提炼所选」。
+- **进行中** — 未归档的实时会话（见下节）。每行显示水位线 `lastSeq`、待提炼字节数，带「只读」徽章；可以整批提炼，也可以只提炼某一条的**新内容**。
 - **主题记忆** — 聚合出的主题，每个条目带 `^f00001` 出处；顶部有「重新整合」「导出到记忆后端」和检索框。
 - **事实** — 事实台账：文本、类型、强度、出处；「显示已失效」展开被取代的旧事实（带 `→ 新 id`）；每条可以「忘记」（唯一会真正删行的操作，会二次确认）。
 - **记忆** — 逐会话的 markdown 记忆，可搜索、可展开看原文。
 - **技能** — 已提炼的技能，标注是否已发布到技能中心。
+- **自检** — 测量与压缩记忆本身（见下节）。「只统计，不改动」和「执行精简」是两个分开的按钮。
 - **设置** — 下面那些开关，改完即存。
 
 ## 设置
@@ -73,6 +75,13 @@ $DSH_HOME/archived-digest/
 | `captureLiveSessions` | `false` | 是否也提炼**未归档**的实时会话（见下节） |
 | `liveMaxPerRun` | `2` | 每次自动跑批最多提炼几个实时会话 |
 | `liveSettleSeconds` | `90` | 实时会话静默多少秒后算结束 |
+| `incrementalLiveCapture` | `false` | 对**进行中**会话做增量提炼（只读，见下节） |
+| `incrementalMinEvents` | `40` | 新事件少于这么多就不值得调一次模型 |
+| `selfCheckEnabled` | `false` | 后台定期自检精简 |
+| `selfCheckIntervalMinutes` | `720` | 自检间隔 |
+| `selfCheckApply` | `false` | 后台自检是否真的执行（关着就只测量） |
+| `selfCheckMergeSkills` | `false` | 自检时是否合并重复技能（风险最高的一步，默认不做） |
+| `selfCheckPurgeTrash` | `false` | 自检时是否清空回收站 |
 | `maxSourceChars` | `14000` | 送给模型的原始转录上限（从尾部往前截，结论在尾部） |
 | `maxTokens` | `2400` | 模型输出上限 |
 | `provider` / `model` | 空 | 自动跑批用哪条路由；留空则按 provider 注册顺序兜底 |
@@ -101,6 +110,46 @@ $DSH_HOME/archived-digest/
 
 **「没有可记的」不是失败。** 一行字的会话被记为 `state.skipped` 而不是 `state.failed`，否则几百个短会话会把真正的失败埋掉；同时它也不会每轮都被重新解码。
 
+## 进行中的会话：只读增量提炼
+
+上一节的实时通道有一个说不出口的缺陷：它等会话**静默**才动手，于是你今天正在聊的这一段永远不会进记忆——而聊得越久的那一段，恰恰是最该被记住的。
+
+增量通道解决这个，并且遵守一条硬约束：**会话日志一个字节都不改。**
+
+**怎么做到的。** 每个事件的 JSON 里带一个单调递增的 `seq`（实测本会话 8350 个事件里 8349 个有 `seq`，且严格递增；唯一没有的是文件首行的 `session` 头事件，它自己就是第 0 条）。所以「提炼到哪了」可以表达成一个整数水位线，存在插件自己的 `<store>/live-cursors.json` 里——**永远不写进会话日志**。下一轮只读 `seq > lastSeq` 的事件。
+
+**怎么证明它是只读的。** 不能靠「sha256 没变」——进行中的会话本来就在被 agent 追加写，整文件哈希每一轮都在变。判据必须是**前缀不变**：记录上次的大小与前缀哈希，之后只比对 `buf.subarray(0, beforeSize)`。`scripts/appendcheck.mjs` 做的就是这个，实测输出 `+0 bytes appended / prefix IDENTICAL / RESULT: append-only`。
+
+**怎么标注已提炼部分。** 三层，都落在插件自己的存储里，不碰会话：
+
+1. 水位线 `lastSeq` —— 面板「进行中」每行显示它，以及「已是最新」/「有新内容 X MB」。
+2. 游标还记 `segments` 与 `bytesAtDigest`，所以一段会话被反复提炼多次是可数的。
+3. 记忆条目带 `partial: true`，渲染时也标明这是**部分**提炼。
+
+**回退保护。** 会话日志被截短（`detectRewind`）时水位线重置到 0，而不是永远跳过。否则一次日志损坏会让你此后再也读不到这段会话。
+
+**部分提炼的会话不能被清理。** 只提炼到 `seq=9646` 的会话，它的完整内容还没进记忆；`cleanupSession` 因此加了一道 `PARTIAL_DIGEST` 门禁，拒绝删这种会话的日志。同时 `needsDigest` 让 partial 会话仍然可以接受一次**完整**提炼——否则它会卡在「既不能清理、也不会再提炼」的死角里。
+
+## 自检精简：记忆自己也会变脏
+
+提炼会不断往里加东西，时间一长记忆自己就成了新的噪声源。自检就是回头收拾它。先测量，再决定要不要动手——这两个动作在面板上是两个分开的按钮。
+
+**为什么技能目录是最大的成本。** 技能会被宿主注入每一轮对话，所以它是**永久**开销，而且单调增长。本机实测：142 个技能、12841 字符、**约 3669 token 每一轮**。这比 facts 台账的噪声严重得多，所以自检把它排第一位。
+
+**三类动作，风险递增：**
+
+| 动作 | 做什么 | 默认 |
+| --- | --- | --- |
+| 重复事实合并 | 文本高度相似的同 kind 事实，保留强的、把弱的标 `validUntil` + `supersededBy` | 测量时只报告 |
+| 失效事实清理 | 强度低于地板的 `open` 类事实标为失效 | 同上 |
+| 重复技能合并 | 名字/描述高度相似的技能合成一个 | **默认关**，需显式勾选 |
+
+**永远不会 delete。** 除了用户手动「忘记」，自检对事实只做 supersede——保留 `validUntil`、`supersededBy`、`supersededReason`，所以随时能看见「这条为什么被取代」。
+
+**阈值为什么是 0.75 而不是写入期的 0.5。** 在真实 1755 条事实上标定过：0.5–0.6 是「同话题不同事实」的假阳性带（例如 0.510 的「把代码注释里的历史断言与 git 提交版本对质」vs「会话未提供 git 是否可用的信息」——这显然是两件事）。0.9 以上才是真复述。写入期用 0.5 是因为那条路径有人看着、且合并是可逆的；无人值守的 housekeeping 不能拿 0.5 赌，静默毁掉两条不同事实不可接受。实测在 0.75 下 100 个候选对收敛到 **8 组真重复**。
+
+**「只统计」也会算完整代价。** 测量那一次仍然要比较 153 万个事实对（本机实测 `pairsCompared: 1539135`）——所以它是按钮，不是每秒轮询的东西。后台自检默认关闭（`selfCheckEnabled: false`）。
+
 ## Agent 工具
 
 注册了一个 `archived_digest` 工具，所以你也可以直接在对话里让它干活：
@@ -120,6 +169,11 @@ action: recall       # 检索记忆（query=...）
 action: remember     # 手动加一条事实，走同一套合并管线
 action: consolidate  # 重算主题
 action: export       # 推给已挂载的记忆插件
+# 进行中会话与自检
+action: live         # 未归档的实时会话（含水位线）
+action: live-digest  # 对进行中会话做只读增量提炼
+action: selfcheck    # 测量或执行记忆精简（apply / mergeSkills / purgeTrash）
+action: health       # 一次拿全：事实、技能目录成本、回收站、游标
 ```
 
 `inspect` 只是解码加去噪，不调模型，适合先看看这个会话到底有没有值得留的东西。`remember` 也走同一个合并管线，所以你补一条和已有结论同义的事实会更新它，而不是并存。
@@ -171,25 +225,29 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:58902/api/dsh-archived
 ## 测试
 
 ```bash
-node scripts/selftest.mjs      # 解码 / 提炼 / 清理 / JSON 修复 / 截断收缩，19 项
-node scripts/hosttest.mjs      # 假 ctx 挂载整个 Host，35 项
-node scripts/clienttest.mjs    # 迷你 React 渲染面板（含记忆 tab），76 项
+node scripts/selftest.mjs      # 解码 / 提炼 / 清理 / JSON 修复 / 截断收缩，22 项
+node scripts/hosttest.mjs      # 假 ctx 挂载整个 Host，37 项
+node scripts/clienttest.mjs    # 迷你 React 渲染面板（含 9 个 tab），90 项
 node scripts/memorytest.mjs    # 事实合并 / 时效 / 主题 / 检索 / 后端，27 项
 node scripts/livetest.mjs      # 实时会话范围 / 静默窗口 / 清理不变式，21 项
+node scripts/incrementaltest.mjs # 水位线 / 增量取数 / 回退 / 部分提炼门禁 / 自检阈值，27 项
 node scripts/assemblertest.mjs # 流式分片归类 / 降级 shim / 预算升级，27 项
 node scripts/copytest.mjs      # 面板语言：中文界面必须是中文，16 项
 node scripts/skillcompat.mjs  # SKILL.md 对技能中心可解析，23 项
 node scripts/mirrortest.mjs   # 技能发布与不覆盖用户技能，14 项
 node scripts/e2e.mjs          # 真实归档会话（63.6 MB / 4063 轮）走完提炼 → 事实 → 主题
 node scripts/livee2e.mjs      # 真实未归档会话（27 MB / 501 轮）同样走完整条路
+node scripts/seqprobe.mjs <session-id>  # 打印该会话的 seq 水位线与 compaction 取证
+node scripts/appendcheck.mjs <session-id> snapshot|verify # 证明日志前缀未被改动
+node scripts/dupecalibrate.mjs # 在真实 facts.json 上标定重复阈值（不是测试，是判据）
 node scripts/clustermetric.mjs # 在真实 facts.json 上打出聚类分布（不是测试，是判据）
 ```
 
 全部离线跑，不发网络请求，不碰真实 store。测试里临时改了 `DSH_HOME` 或 `DSH_ARCHIVED_DIGEST_SKILLS`，所以不会往你真实的 `~/.dsh/skills` 里丢假技能。
 
-记忆层的关键性质都配了**反向验证**——把实现改回错误的写法，对应用例必须变红。已验证的有：改回粗粒度分词会让三条用例红（同义复述被判为新事实）；让 `validUntil` 不落盘会让三条红；去掉检索相关性闸门会让「不相关查询返回 0 条」变红（它返回了全部 3 条）；去掉静默窗口会让「正在进行的会话不该被提炼」变红；去掉归档排除会让「实时清单不得包含归档会话」变红（它多吐了一条）；把流分片里的 `reasoning-delta` 改回写进 text 槽位会让 5 条红，忽略 `finish.reason` 会让 3 条红；让主题聚类的 `subject()` 无视显式主题名，会让「同一主题、毫无共同用词的两条事实必须聚到一起」变红（它裂成了 2 个主题）；把「截断后缩小输入」的循环停掉，会让「截断的提炼要缩小转录而不是只加预算」变红（它报 `MAX_TOKENS` 而不是成功）。
+记忆层的关键性质都配了**反向验证**——把实现改回错误的写法，对应用例必须变红。已验证的有：改回粗粒度分词会让三条用例红（同义复述被判为新事实）；让 `validUntil` 不落盘会让三条红；去掉检索相关性闸门会让「不相关查询返回 0 条」变红（它返回了全部 3 条）；去掉静默窗口会让「正在进行的会话不该被提炼」变红；去掉归档排除会让「实时清单不得包含归档会话」变红（它多吐了一条）；把流分片里的 `reasoning-delta` 改回写进 text 槽位会让 5 条红，忽略 `finish.reason` 会让 3 条红；让主题聚类的 `subject()` 无视显式主题名，会让「同一主题、毫无共同用词的两条事实必须聚到一起」变红（它裂成了 2 个主题）；把「截断后缩小输入」的循环停掉，会让「截断的提炼要缩小转录而不是只加预算」变红（它报 `MAX_TOKENS` 而不是成功）；把面板「只统计」的 `apply: false` 改成 `true`，会让「测量不得改动数据」变红（`incrementaltest` 里另有 8 个 mutation 覆盖水位线与自检阈值）。
 
-## 十三个实现上的坑（都已在代码里处理）
+## 十四个实现上的坑（都已在代码里处理）
 
 **zstd 日志是多帧追加的。** `zstdDecompressSync(整个文件)` 和流式解码都**只吐出第一帧**——一个 16703 字节的文件只解出 211 字节，看起来像"日志是空的"。正确做法是按 magic bytes `28 b5 2f fd` 切帧逐段解压（`lib/session-log.js` 的 `decodeZstdFrames`）。
 
@@ -216,6 +274,10 @@ node scripts/clustermetric.mjs # 在真实 facts.json 上打出聚类分布（�
 **被截断时加大预算是错的，该缩小输入。** 有一个真实归档会话连续三次失败：`output hit the maxTokens=8000 ceiling and was truncated (reasoning 17853 chars before the answer)` —— 8000 的输出预算全花在思考上，一个答案字符都没写出来。原来的重试只是在 `MAX_TOKENS_CEILING = 8000` 内翻倍预算，对这种「思考占满预算」的情况，加预算只会买到更多思考。修法是**反过来缩输入**：`lib/digester.js` 保留解码后的事件列表（`read.eventList`），遇到 `MAX_TOKENS` 就把 `maxSourceChars` 减半重新抽取正文再试，下界是 `max(1500, 25%)`；要思考的东西少了，答案才装得下。同一个会话缩到 6628 字符后一次性成功。回归在 `selftest.mjs` 的「a truncated digest shrinks the transcript instead of only raising the budget」，停掉这个循环就会红。
 
 **改 `touch cordis.patch.yml` 不会重载插件，看起来"验证通过"其实跑的还是旧代码。** 在 `index.js` 里加 `const BUILD = 'xxx'` 并让 `/status` 返回它之后才看清：`touch` 只改了 mtime，宿主仍在跑旧模块图（`build: undefined`）；**必须改文件内容**（哪怕追加一行注释）才会触发 watcher。这条元缺陷会让所有"修完再验一遍"的结论都不可信，所以 `scripts/reload.sh <build> <port>` 会改内容、等待、并断言 `/status` 里的 `build` 与传入值一致，不一致就报错退出。
+
+**进行中的会话在线，"已清理"的会话不在线，两者都会被算成"丢了"。** `findSessionDir` 只在 `sessions/<slug>/<id>` 里找，所以已经清理到 `trash/` 的会话找不到——面板于是显示「38 缺失」，和「38 段对话被弄坏了」在界面上完全无法区分，而这 38 个其实都还能恢复。修法是 `trashedSessionIds()` 去 `trash/` 里反查，并且要同时认两种目录名（trash 目录名过了 `sessionSlug()`，`session-` 前缀被剥掉了，真实名形如 `01231136-…-1793096037689`）。修后 39 present + 38 cleaned + 0 missing = 77。`selftest.mjs` 里三条用例钉住这个分区。
+
+**只有部分记忆的会话，既不能删也不能再提炼——除非你特意开一扇门。** 增量提炼只会记到当前水位线，所以那种会话的完整内容还没进记忆；`cleanupSession` 因此加了 `PARTIAL_DIGEST` 门禁拒绝删它。但只看这一条会制造死角：`needsDigest` 原本用 `if (session.digestedAt) continue`，于是这个会话**永远拿不到一次完整提炼**，永远停在"不能删、不再提炼"。修法是判据改成 `if (session.digestedAt && !partial) continue`。
 
 ## 许可
 

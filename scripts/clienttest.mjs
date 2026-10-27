@@ -173,6 +173,39 @@ setRoute('api/dsh-archived-digest/inspect', () => ({ ok: true, sessionId: BIG, e
 setRoute('api/dsh-archived-digest/memory', () => ({ ok: true, entry: MEMORIES.memories[0], text: '---\ntitle: Zstd frames\n---\nbody' }));
 setRoute('api/dsh-archived-digest/skill', () => ({ ok: true, entry: SKILLS.skills[0], text: '---\nname: x\n---\nbody' }));
 setRoute('api/dsh-archived-digest/run/stop', () => ({ ok: true, stopped: true }));
+setRoute('api/dsh-archived-digest/live', () => ({
+  ok: true,
+  total: 426,
+  capturing: 2,
+  pending: 424,
+  stats: { sessions: 2, segments: 3, turns: 610, maxSeq: 9646 },
+  sessions: [
+    { sessionId: 'session-live-0001', workspaceSlug: '--D--', bytes: 7064829, mtimeMs: Date.now(), pinned: false, title: '进行中的会话', digestedAt: new Date().toISOString(), lastSeq: 9646, segments: 1, totalTurns: 305, pendingBytes: 0, upToDate: true },
+    { sessionId: 'session-live-0002', workspaceSlug: '--D--', bytes: 1200000, mtimeMs: Date.now(), pinned: false, title: null, digestedAt: null, lastSeq: 0, segments: 0, totalTurns: 0, pendingBytes: 1200000, upToDate: false },
+  ],
+}));
+setRoute('api/dsh-archived-digest/live/digest', ({ body }) => ({ ok: true, started: true, count: (body.sessionIds ?? []).length || 2, sessionIds: body.sessionIds ?? ['a', 'b'] }));
+setRoute('api/dsh-archived-digest/health', () => ({
+  ok: true,
+  facts: { live: 397, invalidated: 29, topics: 14, byKind: { decision: 93, fact: 225, open: 79 } },
+  skills: { skills: 139, chars: 12582, tokens: 3595, redundant: 10 },
+  memories: 85,
+  live: { sessions: 2, segments: 3, turns: 610, maxSeq: 9646 },
+}));
+setRoute('api/dsh-archived-digest/selfcheck', ({ body }) => ({
+  ok: true,
+  applied: body.apply === true,
+  facts: {
+    before: { live: 1732, invalidated: 305, topics: 62 },
+    after: { live: body.apply === true ? 1724 : 1732, invalidated: body.apply === true ? 313 : 305, topics: 62 },
+    duplicateGroups: 8,
+    retiredDuplicates: 8,
+    stalePruned: 0,
+  },
+  skills: { catalog: { skills: 139, chars: 12582, tokens: 3595 }, redundant: [], redundantCount: 10, merges: [] },
+  memories: { count: 85 },
+  trash: { purged: 0, freed: 0, pendingBytes: 232259584 },
+}));
 
 // ── first render ────────────────────────────────────────────────────────────
 const Page = pageSlot.Component;
@@ -208,7 +241,7 @@ check('the overview reports the auto switch as off', loadedText.includes('自动
 
 // ── tabs ────────────────────────────────────────────────────────────────────
 const tabButtons = MiniReact.findAll(current.tree, (node) => node.tag === 'button' && String(node.props.className ?? '').includes('ad-tab'));
-check('the panel renders seven tabs', tabButtons.length === 7, tabButtons.map((tab) => MiniReact.textOf(tab)).join(' | '));
+check('the panel renders every tab', tabButtons.length === 9, tabButtons.map((tab) => MiniReact.textOf(tab)).join(' | '));
 
 /**
  * Click a tab by its label.
@@ -411,6 +444,57 @@ if (cleanupNow && cleanupNow.props.disabled === false) {
   check('destructive cleanup asks for confirmation', confirmations.length > 0, `${confirmations.length} prompts`);
   check('the cleanup call carries the marker', calls.some((call) => call.path === 'api/dsh-archived-digest/cleanup'
     && call.headers['x-dsh-archived-digest'] === '1'), 'marker present');
+}
+
+// ── incremental live capture ────────────────────────────────────────────────
+// The tab's whole promise is that taking a running session's new content is
+// read-only, so it must say so and must send the exact session id it names.
+clickTab('进行中');
+await flush();
+const liveText = MiniReact.textOf(current.tree);
+check('the live tab states the read-only guarantee', liveText.includes('只读'), 'read-only badge');
+check('the live tab counts running sessions', liveText.includes('426'), 'live total');
+check('the live tab marks an up-to-date session', liveText.includes('已是最新'), 'up-to-date badge');
+check('the live tab shows a pending one', liveText.includes('有新内容'), 'pending badge');
+const liveOne = MiniReact.findAll(current.tree, (node) => node.tag === 'button'
+  && MiniReact.textOf(node).includes('提炼这条的新内容'));
+check('each live session offers its own take button', liveOne.length >= 1, `${liveOne.length} buttons`);
+if (liveOne.length > 0) {
+  liveOne[liveOne.length - 1].props.onClick();
+  await flush();
+  const liveCall = calls.filter((call) => call.method === 'POST' && call.path === 'api/dsh-archived-digest/live/digest').pop();
+  check('taking one live session sends its exact id', liveCall !== undefined
+    && JSON.parse(liveCall.body).sessionIds?.length === 1, liveCall?.body);
+  check('the live digest call carries the marker', liveCall?.headers['x-dsh-archived-digest'] === '1', 'marker present');
+}
+
+// ── self-check ──────────────────────────────────────────────────────────────
+clickTab('自检');
+await flush();
+const checkText = MiniReact.textOf(current.tree);
+check('the self-check tab shows the skill catalog cost', /tok/.test(checkText), 'catalog tokens');
+const measureButton = MiniReact.findAll(current.tree, (node) => node.tag === 'button'
+  && MiniReact.textOf(node).includes('只统计，不改动'))[0];
+check('the self-check offers a measure-only action', measureButton !== undefined, 'present');
+if (measureButton) {
+  measureButton.props.onClick();
+  await flush();
+  const measureCall = calls.filter((call) => call.method === 'POST' && call.path === 'api/dsh-archived-digest/selfcheck').pop();
+  check('measuring sends apply:false', measureCall !== undefined && JSON.parse(measureCall.body).apply === false, measureCall?.body);
+  const reportText = MiniReact.textOf(current.tree);
+  check('the measure report is rendered', reportText.includes('条重复事实'), 'report card');
+  check('a measure-only run changed nothing', reportText.includes('未改动任何数据'), 'reported badge');
+}
+
+const applyButton = MiniReact.findAll(current.tree, (node) => node.tag === 'button'
+  && MiniReact.textOf(node) === '执行精简')[0];
+if (applyButton) {
+  const before = confirmations.length;
+  applyButton.props.onClick();
+  await flush();
+  check('compacting asks for confirmation first', confirmations.length > before, `${confirmations.length - before} prompt`);
+  const applyCall = calls.filter((call) => call.method === 'POST' && call.path === 'api/dsh-archived-digest/selfcheck').pop();
+  check('compacting sends apply:true', applyCall !== undefined && JSON.parse(applyCall.body).apply === true, applyCall?.body);
 }
 
 // ── error surface ───────────────────────────────────────────────────────────

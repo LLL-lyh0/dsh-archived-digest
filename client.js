@@ -69,6 +69,8 @@ window.__ModuleLoader__.load({
         tabTopics: '主题记忆',
         tabFacts: '事实',
         tabSkills: '技能',
+        tabLive: '进行中',
+        tabSelfCheck: '自检',
         tabSettings: '设置',
         // overview
         statArchived: '归档会话',
@@ -185,6 +187,35 @@ window.__ModuleLoader__.load({
         setMaxTokens: '单次输出 token 上限',
         save: '保存',
         saved: '已保存',
+        // live (incremental) capture
+        liveHint: '进行中的会话只读读取：只取上次提炼之后的新事件，会话日志一个字节都不会被改动。',
+        liveTotal: '进行中会话',
+        liveCaptured: '已提炼过',
+        livePending: '有新内容',
+        liveDigestOne: '提炼这条的新内容',
+        liveDigestSome: '提炼最需要的一批',
+        liveUpToDate: '已是最新',
+        liveNothing: '没有可增量提炼的进行中会话',
+        liveStarted: '已开始增量提炼',
+        liveEmpty: '没有进行中的会话',
+        liveReadOnly: '只读',
+        liveTurns: '轮',
+        liveSeq: '已提炼到',
+        // self-check
+        selfCheckHint: '长期使用后记忆会累积成噪声。自检会先只读统计，再由你决定是否真的精简。',
+        selfCheckRun: '只统计，不改动',
+        selfCheckApply: '执行精简',
+        selfCheckFacts: '条重复事实',
+        selfCheckSkills: '组重复技能',
+        selfCheckStale: '条陈旧待办',
+        selfCheckCatalog: '技能目录占用',
+        selfCheckTrash: '可回收磁盘',
+        selfCheckReported: '已生成报告（未改动任何数据）',
+        selfCheckApplied: '已精简',
+        selfCheckNone: '没有需要精简的内容',
+        selfCheckMergeSkills: '同时合并重复技能',
+        selfCheckPurgeTrash: '同时清空回收站',
+        confirmSelfCheck: '确定执行精简？重复事实会被标记为失效（不删除，可在事实页查看历史），不会丢失原始记录。',
         // misc
         error: '出错了',
         busy: '有任务正在进行，请等待完成。',
@@ -204,6 +235,8 @@ window.__ModuleLoader__.load({
         tabTopics: 'Topics',
         tabFacts: 'Facts',
         tabSkills: 'Skills',
+        tabLive: 'Live',
+        tabSelfCheck: 'Self-check',
         tabSettings: 'Settings',
         statArchived: 'Archived',
         statLogs: 'Log size',
@@ -315,6 +348,35 @@ window.__ModuleLoader__.load({
         setMaxTokens: 'Output token ceiling',
         save: 'Save',
         saved: 'Saved',
+        // live (incremental) capture
+        liveHint: 'Read-only: only events newer than the last pass are taken, and the session log is never modified.',
+        liveTotal: 'Live sessions',
+        liveCaptured: 'Already captured',
+        livePending: 'Has new content',
+        liveDigestOne: "Take this one's new part",
+        liveDigestSome: 'Take the most-needed batch',
+        liveUpToDate: 'Up to date',
+        liveNothing: 'No running session has new content to take',
+        liveStarted: 'Incremental digest started',
+        liveEmpty: 'No running sessions',
+        liveReadOnly: 'read-only',
+        liveTurns: 'turns',
+        liveSeq: 'Captured to',
+        // self-check
+        selfCheckHint: 'Memory accumulates into noise over long use. The self-check measures first, read-only; you decide whether to compact.',
+        selfCheckRun: 'Measure only',
+        selfCheckApply: 'Compact now',
+        selfCheckFacts: 'duplicate facts',
+        selfCheckSkills: 'redundant skill pairs',
+        selfCheckStale: 'stale open items',
+        selfCheckCatalog: 'Skill catalog cost',
+        selfCheckTrash: 'Reclaimable disk',
+        selfCheckReported: 'Report ready (nothing changed)',
+        selfCheckApplied: 'Compacted',
+        selfCheckNone: 'Nothing needs compacting',
+        selfCheckMergeSkills: 'Also merge duplicate skills',
+        selfCheckPurgeTrash: 'Also empty the trash',
+        confirmSelfCheck: 'Compact now? Duplicate facts are marked invalid rather than deleted — the history stays visible on the facts tab, so no original record is lost.',
         error: 'Something went wrong',
         busy: 'A job is running, wait for it to finish.',
         stop: 'Stop',
@@ -399,11 +461,14 @@ window.__ModuleLoader__.load({
 .ad-stat{display:flex;flex-direction:column;gap:1px;padding:9px 11px;border-radius:8px;background:var(--dsw-alias-bg-l2,#141414);border:0.5px solid var(--dsw-alias-border-l1,#3a3a3a)}
 .ad-stat-num{font-size:16px;font-weight:650;color:var(--dsw-alias-label-primary,#eee);font-variant-numeric:tabular-nums}
 .ad-stat-label{font-size:10.5px;color:var(--dsw-alias-label-tertiary,#a0a0a0)}
+.ad-subcard{margin-top:12px;padding:11px 12px;border-radius:9px;background:var(--dsw-alias-bg-l2,#141414);border:0.5px solid var(--dsw-alias-border-l1,#3a3a3a);display:flex;flex-direction:column;gap:9px}
+.ad-subcard-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary,#eee)}
+.ad-check-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dsw-alias-label-secondary,#c8c8c8);cursor:pointer;padding:5px 0}
+.ad-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
 .ad-kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:11.5px;align-items:baseline}
 .ad-kv-k{color:var(--dsw-alias-label-tertiary,#a0a0a0);white-space:nowrap}
 .ad-kv-v{color:var(--dsw-alias-label-primary,#eee);min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px}
-.ad-switch{display:flex;align-items:center;gap:9px;padding:7px 0}
-.ad-switch-label{font-size:12.5px;color:var(--dsw-alias-label-primary,#eee);flex:1 1 auto}
+.ad-switch{display:flex;align-items:center;gap:9px;padding:7px 0}.ad-switch-label{font-size:12.5px;color:var(--dsw-alias-label-primary,#eee);flex:1 1 auto}
 .ad-track{flex:none;width:38px;height:21px;border-radius:11px;background:var(--dsw-alias-bg-l2,#141414);border:0.5px solid var(--dsw-alias-border-l1,#3a3a3a);cursor:pointer;position:relative;transition:background .15s}
 .ad-track-on{background:rgba(79,140,255,.55);border-color:rgba(79,140,255,.8)}
 .ad-knob{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#eee;transition:transform .15s}
@@ -628,6 +693,14 @@ window.__ModuleLoader__.load({
       const [recallResult, setRecallResult] = React.useState(null);
       const [consolidating, setConsolidating] = React.useState(false);
       const [exporting, setExporting] = React.useState(false);
+      // incremental live capture + self-check
+      const [liveList, setLiveList] = React.useState([]);
+      const [liveStats, setLiveStats] = React.useState(null);
+      const [liveBusy, setLiveBusy] = React.useState(false);
+      const [health, setHealth] = React.useState(null);
+      const [checkReport, setCheckReport] = React.useState(null);
+      const [checking, setChecking] = React.useState(false);
+      const [mergeSkillsOn, setMergeSkillsOn] = React.useState(false);
 
       const loadStatus = React.useCallback(() => {
         return fetchView(API.status)
@@ -670,13 +743,35 @@ window.__ModuleLoader__.load({
           .catch((caught) => setError(String(caught?.message ?? caught)));
       }, []);
 
+      const loadLive = React.useCallback(() => {
+        return fetchView(API.live)
+          .then((data) => {
+            setLiveList(Array.isArray(data?.sessions) ? data.sessions : []);
+            setLiveStats({
+              total: data?.total ?? 0,
+              capturing: data?.capturing ?? 0,
+              pending: data?.pending ?? 0,
+              stats: data?.stats ?? null,
+            });
+          })
+          .catch((caught) => setError(String(caught?.message ?? caught)));
+      }, []);
+
+      const loadHealth = React.useCallback(() => {
+        return fetchView(API.health)
+          .then((data) => setHealth(data ?? null))
+          .catch((caught) => setError(String(caught?.message ?? caught)));
+      }, []);
+
       React.useEffect(() => {
         loadStatus();
         loadSessions();
         loadMemories();
         loadSkills();
         loadMemoryLayer();
-      }, [loadStatus, loadSessions, loadMemories, loadSkills, loadMemoryLayer]);
+        loadLive();
+        loadHealth();
+      }, [loadStatus, loadSessions, loadMemories, loadSkills, loadMemoryLayer, loadLive, loadHealth]);
 
       // Poll only while a batch is running: a permanent interval here would spin
       // the machine for a panel nobody is looking at.
@@ -692,12 +787,13 @@ window.__ModuleLoader__.load({
                 loadSessions();
                 loadMemories();
                 loadSkills();
+                loadLive();
               }
             })
             .catch(() => {});
         }, 1200);
         return () => clearInterval(timer);
-      }, [running, loadStatus, loadSessions, loadMemories, loadSkills]);
+      }, [running, loadStatus, loadSessions, loadMemories, loadSkills, loadLive]);
 
       const toggleSession = (sessionId) => {
         setSelected((current) => {
@@ -1018,12 +1114,66 @@ window.__ModuleLoader__.load({
         }
       };
 
+      /** Take the new part of a running session without touching its log. */
+      const digestLiveNow = async (sessionId) => {
+        setLiveBusy(true);
+        setError('');
+        setNotice('');
+        try {
+          const body = typeof sessionId === 'string' && sessionId !== ''
+            ? { sessionIds: [sessionId], limit: 1 }
+            : { limit: 2 };
+          const result = await postJson(API.liveDigest, body);
+          if (result?.started === false) {
+            setNotice(result.message ?? t.liveNothing);
+          } else {
+            setNotice(`${t.liveStarted}: ${result?.count ?? 0}`);
+            setTab('overview');
+            await loadStatus();
+          }
+          await loadLive();
+        } catch (caught) {
+          setError(String(caught?.message ?? caught));
+        } finally {
+          setLiveBusy(false);
+        }
+      };
+
+      /**
+       * Run the self-check.
+       *
+       * `apply: false` is the default and the button says so, because a compaction
+       * that can retire facts must be inspectable before it runs. The report is kept
+       * on screen either way — that is what makes the next decision possible.
+       */
+      const runSelfCheck = async ({ apply = false, mergeSkills = false, purgeTrash = false } = {}) => {
+        if (apply && !window.confirm(t.confirmSelfCheck)) return;
+        setChecking(true);
+        setError('');
+        setNotice('');
+        try {
+          const result = await postJson(API.selfCheck, { apply, mergeSkills, purgeTrash });
+          setCheckReport(result ?? null);
+          if (apply) {
+            setNotice(`${t.selfCheckApplied}: ${result?.facts?.retiredDuplicates ?? 0} ${t.selfCheckFacts}`);
+            await loadMemoryLayer();
+            await loadStatus();
+            await loadHealth();
+          } else {
+            setNotice(t.selfCheckReported);
+          }
+        } catch (caught) {
+          setError(String(caught?.message ?? caught));
+        } finally {
+          setChecking(false);
+        }
+      };
+
       const forgetOneFact = async (id) => {
         if (!window.confirm(t.confirmForgetFact)) return;
         setError('');
         try {
-          await postJson(API.forgetFact, { id });
-          await loadMemoryLayer();
+          await postJson(API.forgetFact, { id });          await loadMemoryLayer();
         } catch (caught) {
           setError(String(caught?.message ?? caught));
         }
@@ -1211,6 +1361,128 @@ window.__ModuleLoader__.load({
             )),
       );
 
+      /**
+       * Live tab: running sessions and what part of each is already in memory.
+       *
+       * The whole tab is built around one promise the server keeps — the log is
+       * only ever read — so the hint says so plainly and every row shows how far
+       * the watermark has advanced instead of a vague "done" badge.
+       */
+      const liveTab = h('div', { className: 'ad-card' },
+        h('div', { className: 'ad-card-title' }, t.tabLive),
+        h('div', { className: 'ad-hint' }, t.liveHint),
+        h('div', { className: 'ad-stats' },
+          h(Stat, { label: t.liveTotal, value: String(liveStats?.total ?? 0) }),
+          h(Stat, { label: t.liveCaptured, value: String(liveStats?.capturing ?? 0) }),
+          h(Stat, { label: t.livePending, value: String(liveStats?.pending ?? 0) }),
+        ),
+        h('div', { className: 'ad-toolbar' },
+          h('button', {
+            type: 'button',
+            className: 'ad-btn',
+            disabled: liveBusy || (liveStats?.pending ?? 0) === 0,
+            onClick: () => digestLiveNow(),
+          }, t.liveDigestSome),
+          h('button', { type: 'button', className: 'ad-btn ad-btn-ghost', onClick: loadLive }, t.reload),
+        ),
+        liveList.length === 0
+          ? h('div', { className: 'ad-hint' }, t.liveEmpty)
+          : h('div', { className: 'ad-list' },
+            liveList.slice(0, 60).map((session) => h('div', { className: 'ad-session', key: session.sessionId },
+              h('div', { className: 'ad-session-main' },
+                h('div', { className: 'ad-session-id', title: session.sessionId },
+                  session.title ? String(session.title) : shortId(session.sessionId)),
+                h('div', { className: 'ad-session-facts' },
+                  h('span', { className: session.upToDate ? 'ad-tag ad-tag-ok' : 'ad-tag ad-tag-warn' },
+                    session.upToDate ? t.liveUpToDate : `${t.livePending} ${formatBytes(session.pendingBytes)}`),
+                  h('span', { className: 'ad-tag ad-tag-ok', title: t.liveHint }, t.liveReadOnly),
+                  session.lastSeq > 0 ? h('span', null, `${t.liveSeq} seq ${session.lastSeq}`) : null,
+                  session.totalTurns > 0 ? h('span', null, `${session.totalTurns} ${t.liveTurns}`) : null,
+                  session.segments > 0 ? h('span', null, `${session.segments}×`) : null,
+                  h('span', null, formatBytes(session.bytes)),
+                  session.mtimeMs ? h('span', null, relativeDate(new Date(session.mtimeMs).toISOString())) : null,
+                  session.pinned ? h('span', { className: 'ad-tag ad-tag-warn' }, t.statePinned) : null,
+                ),
+              ),
+              h('button', {
+                type: 'button',
+                className: 'ad-btn ad-btn-ghost',
+                disabled: liveBusy || session.pinned,
+                onClick: () => digestLiveNow(session.sessionId),
+              }, t.liveDigestOne),
+            )),
+          ),
+      );
+
+      /**
+       * Self-check tab.
+       *
+       * Two distinct buttons on purpose: measuring is free and safe, compacting
+       * changes stored memory. Keeping them separate is what lets the user see the
+       * plan before authorising it.
+       */
+      const reportCard = (() => {
+        if (checkReport === null) return null;
+        const facts = checkReport.facts ?? {};
+        const skills = checkReport.skills ?? {};
+        const catalog = skills.catalog ?? {};
+        return h('div', { className: 'ad-subcard' },
+          h('div', { className: 'ad-subcard-title' }, checkReport.applied ? t.selfCheckApplied : t.selfCheckReported),
+          h('div', { className: 'ad-stats' },
+            h(Stat, { label: t.selfCheckFacts, value: String(facts.retiredDuplicates ?? 0) }),
+            h(Stat, { label: t.selfCheckSkills, value: String(skills.redundantCount ?? 0) }),
+            h(Stat, { label: t.selfCheckStale, value: String(facts.stalePruned ?? 0) }),
+            h(Stat, { label: t.selfCheckCatalog, value: `${catalog.skills ?? 0} / ~${catalog.tokens ?? 0} tok` }),
+            h(Stat, { label: t.selfCheckTrash, value: formatBytes(checkReport.trash?.freed || checkReport.trash?.pendingBytes || 0) }),
+          ),
+          facts.before || facts.after
+            ? h('div', { className: 'ad-session-facts' },
+              h('span', { className: 'ad-tag ad-tag-ok' },
+                `${t.tabFacts}: ${facts.before?.live ?? 0} → ${facts.after?.live ?? 0}`),
+              h('span', null, `${t.tabTopics}: ${facts.after?.topics ?? 0}`),
+              h('span', null, facts.retiredDuplicates > 0 ? t.selfCheckFacts : t.selfCheckNone),
+            )
+            : null,
+        );
+      })();
+
+      const mergeToggle = h('label', { className: 'ad-check-row' },
+        h('input', {
+          type: 'checkbox',
+          className: 'ad-check',
+          checked: mergeSkillsOn,
+          onChange: (event) => setMergeSkillsOn(event.target.checked === true),
+        }),
+        h('span', null, t.selfCheckMergeSkills),
+      );
+
+      const selfCheckTab = h('div', { className: 'ad-card' },
+        h('div', { className: 'ad-card-title' }, t.tabSelfCheck),
+        h('div', { className: 'ad-hint' }, t.selfCheckHint),
+        h('div', { className: 'ad-stats' },
+          h(Stat, { label: t.tabFacts, value: String(health?.facts?.live ?? status?.counts?.facts ?? 0) }),
+          h(Stat, { label: t.tabTopics, value: String(health?.facts?.topics ?? status?.counts?.topics ?? 0) }),
+          h(Stat, { label: t.tabSkills, value: String(health?.skills?.skills ?? status?.counts?.skills ?? 0) }),
+          h(Stat, { label: t.selfCheckCatalog, value: `~${health?.skills?.tokens ?? 0} tok` }),
+        ),
+        h('div', { className: 'ad-toolbar' },
+          h('button', {
+            type: 'button',
+            className: 'ad-btn ad-btn-ghost',
+            disabled: checking,
+            onClick: () => runSelfCheck({ apply: false }),
+          }, t.selfCheckRun),
+          h('button', {
+            type: 'button',
+            className: 'ad-btn',
+            disabled: checking,
+            onClick: () => runSelfCheck({ apply: true, mergeSkills: mergeSkillsOn }),
+          }, t.selfCheckApply),
+        ),
+        mergeToggle,
+        reportCard,
+      );
+
       const settingsTab = h('div', { className: 'ad-card' },
         h('div', { className: 'ad-card-title' }, t.settingsTitle),
         h(Switch, {
@@ -1364,7 +1636,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-sub' }, t.subtitle),
         ),
         h('div', { className: 'ad-tabs' },
-          ['overview', 'sessions', 'topics', 'facts', 'memories', 'skills', 'settings'].map((key) => h('button', {
+          ['overview', 'sessions', 'live', 'topics', 'facts', 'memories', 'skills', 'selfcheck', 'settings'].map((key) => h('button', {
             type: 'button',
             key,
             className: `ad-tab${tab === key ? ' ad-tab-on' : ''}`,
@@ -1372,10 +1644,12 @@ window.__ModuleLoader__.load({
           }, {
             overview: t.tabOverview,
             sessions: `${t.tabSessions}${sessionList.length > 0 ? ` (${sessionList.length})` : ''}`,
+            live: `${t.tabLive}${(liveStats?.pending ?? 0) > 0 ? ` (${liveStats.pending})` : ''}`,
             topics: `${t.tabTopics}${topicList.length > 0 ? ` (${topicList.length})` : ''}`,
             facts: `${t.tabFacts}${factList.length > 0 ? ` (${factList.length})` : ''}`,
             memories: `${t.tabMemories}${memoryList.length > 0 ? ` (${memoryList.length})` : ''}`,
             skills: `${t.tabSkills}${skillList.length > 0 ? ` (${skillList.length})` : ''}`,
+            selfcheck: t.tabSelfCheck,
             settings: t.tabSettings,
           }[key])),
         ),
@@ -1384,10 +1658,12 @@ window.__ModuleLoader__.load({
         loading ? h('div', { className: 'ad-hint' }, t.loading) : null,
         tab === 'overview' ? overview : null,
         tab === 'sessions' ? sessionsTab : null,
+        tab === 'live' ? liveTab : null,
         tab === 'topics' ? topicsTab : null,
         tab === 'facts' ? factsTab : null,
         tab === 'memories' ? memoriesTab : null,
         tab === 'skills' ? skillsTab : null,
+        tab === 'selfcheck' ? selfCheckTab : null,
         tab === 'settings' ? settingsTab : null,
       );
     }

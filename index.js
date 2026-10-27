@@ -74,7 +74,7 @@ const ROUTE_BASE = '/api/dsh-archived-digest';
 // Bumped whenever the plugin's own behaviour changes. The panel shows it, and
 // scripts/reload.sh asserts it, so "the fix did not help" can never secretly mean
 // "the host is still executing the previous module graph".
-const BUILD = 'incremental-selfcheck-11';
+const BUILD = 'selfcheck-tabs-12';
 /** Mutating requests must carry this header (client marker, CSRF fence). */
 const CLIENT_MARKER_HEADER = 'x-dsh-archived-digest';
 const MAX_BODY_BYTES = 1 << 20;

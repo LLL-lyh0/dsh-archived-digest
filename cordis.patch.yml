@@ -29,6 +29,17 @@
         captureLiveSessions: false
         liveMaxPerRun: 2
         liveSettleSeconds: 90
+        # 进行中会话的只读增量提炼：只读 seq 水位线之后的新事件，会话日志一个字节都不改。
+        # 游标存在插件自己的 live-cursors.json 里。
+        incrementalLiveCapture: false
+        incrementalMinEvents: 40
+        # 自检精简：回头收拾记忆自己积累的噪声（重复事实 / 失效事实 / 重复技能）。
+        # 默认只测量不执行；合并技能风险最高，需要单独开。
+        selfCheckEnabled: false
+        selfCheckIntervalMinutes: 720
+        selfCheckApply: false
+        selfCheckMergeSkills: false
+        selfCheckPurgeTrash: false
         maxSourceChars: 14000
         maxTokens: 2400
         provider: ''

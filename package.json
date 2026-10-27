@@ -1,6 +1,6 @@
 {
   "name": "dsh-archived-digest",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "type": "module",
   "description": "把归档会话压缩成记忆、事实台账与可复用技能，统一存放管理，并可选地回收日志占用的空间。事实按 mem0 的 ADD/UPDATE/NOOP 合并、按 Zep 的时效模型保留已被取代的旧结论，再聚合成主题，可导出到已挂载的记忆插件。自动提炼可关闭，也可手动挑选要提炼的归档会话。Distil archived sessions into memories, fact-level memory and reusable skills, then reclaim the log space.",
   "keywords": [
